@@ -40,64 +40,58 @@ Tested with `dsh` 0.2.2-rc.5 (`web` profile). See [Compatibility](#compatibility
 
 ## Use
 
-Out of the box the bundle typesets a wordmark: `DEEPSEEK` at weight 500 and `HARNESS` at
-weight 400 with 60% opacity, 13&nbsp;px on a 0.12&nbsp;em tracking, in `Montserrat` — the brand
-font the app already loads. The whale mark stays as it is.
+![The 品牌 page in Settings: uploaded mark, typeset wordmark, size and tracking sliders](assets/screenshot-settings.png)
 
-Two helpers rewrite the compiled bundle. Run them inside the package directory:
+Open the account menu → **Settings** → **品牌**. Everything there applies immediately and is
+saved to your profile — no rebuild, no restart.
 
-```sh
-# retune the typeset wordmark (1–3 words; first word solid, later words lighter)
-node tools/set-text.mjs DEEPSEEK HARNESS --size 13 --tracking .12em --weights 500,400 --opacity 1,.6
+- **图标** — keep the shipped whale, or upload your own image. Uploads are downscaled to at
+  most 96 px and stored as a PNG data URL in your profile config.
+- **文字标** — typeset words, or show a single image:
+  - words: 1–3 words, the first solid and the rest lighter (60% opacity by default), 8–20 px,
+    tracking 0–0.4 em, in `Montserrat`, the brand font the app already loads;
+  - image: rendered at the height you pick (14–32 px), as wide as it needs to be.
+- **恢复默认** clears the stored fields and falls back to the shipped `DEEPSEEK HARNESS`.
 
-# or drop in an image instead
-node tools/set-logo.mjs ./my-logo.png
+The values live in the `web` profile's `cordis.patch.yml`, under the row this bundle installs:
+
+```yaml
+- id: brand-logo
+  name: dsh-brand-logo
+  config:
+    text: ACME LABS
 ```
 
-`set-text.mjs` options: `--size` (px), `--tracking` (CSS length), `--gap` (space between
-words), `--weights` and `--opacity` (comma-separated per word), `--case upper|none`.
-
-`set-logo.mjs` accepts `svg`, `png`, `jpg`, `webp`, `gif` and `avif`. It reads the image's
-aspect ratio and picks the slot to use:
-
-- aspect ≥ 1.7 → treated as a wordmark and rendered in `sidebar.brand.name`, 24 px tall;
-- otherwise → treated as a square mark and rendered in `sidebar.brand.mark` at 24×24.
-
-Force either case with `--mode wide|icon`, change the height with `--height 22`, or skip the
-detection with `--aspect`.
-
-The image is copied into `assets/` and inlined into `client.js` as a data URL — a client module
-receives no configuration from its cordis row, so the picture has to be compiled in. Prefer a
-file that is already roughly the size the row needs (about 48 px tall for a 2× display, tight
-cropping, transparent background): every byte ends up in the module the browser downloads.
-
-After either helper, restart `dsh web` and reload. If you installed from a directory link,
-reloading alone is usually enough once the file's mtime changes.
+Nothing is baked into the package, so reinstalling or updating it never overwrites your brand.
 
 ## What is in the box
 
 ```
-index.js               empty host half (the bundle has no server-side behaviour)
-client.js              the compiled browser module: config + slot registrations
-cordis.patch.yml       inserts the bundle into the loader
-tools/set-text.mjs     typeset wordmark builder
-tools/set-logo.mjs     image builder (aspect detection, data URL inlining)
-tools/lib/             shared writer, template resolution
-tools/client.template.js  component source; edit for deeper changes, then re-run a helper
-locale/en.json         plugin metadata (title, description, detail doc)
+index.js                  host half: declares the settings schema the Settings page edits
+client.js                 compiled browser module: brand slots + Settings page
+cordis.patch.yml          inserts the bundle into the loader
+tools/build.mjs           rebuilds client.js from the template
+tools/client.template.js  page and component source
+tools/lib/client-build.mjs  small writer shared by the build
+locale/en.json            plugin metadata (title, description, detail doc)
 locale/zh.json
-icon.svg               plugin row icon
-assets/                screenshots, and any image you compile in
-docs/DETAIL.md         the long-form plugin detail page
+icon.svg                  plugin row icon
+assets/                   screenshots and the raster plugin icon
+docs/DETAIL.md            the long-form plugin detail page
 ```
+
+To change the page itself, edit `tools/client.template.js`, run `node tools/build.mjs` and
+reload the page — the client HMR watcher picks up a rebuilt bundle, and a restart of `dsh web`
+always does.
 
 ## Compatibility
 
-Built and tested against `dsh` 0.2.2-rc.5. It depends on three things from the host, all of
-them part of the client slot system: the two slot names above, `priority` shadowing for
-`single` slots, and the `--dsw-font-family-brand` custom property used by the default
-typesetting. If a future release renames the slots the bundle simply stops matching and the
-shipped brand returns; nothing else breaks.
+Built and tested against `dsh` 0.2.2-rc.5. It depends on the client slot system
+(`sidebar.brand.mark` and `sidebar.brand.name`, `priority` shadowing for `single` slots), the
+client settings service (`ctx.configForms` and the `settings.section` slot), and
+`--dsw-font-family-brand` for the default typesetting. If a future release renames the slots
+the bundle simply stops matching and the shipped brand returns; if the settings service moves,
+the page reports that the config is not writable and the shipped defaults stay in use.
 
 ## Uninstall
 

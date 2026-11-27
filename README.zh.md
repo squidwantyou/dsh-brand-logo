@@ -34,57 +34,52 @@ dsh plugin --profile web add github:squidwantyou/dsh-brand-logo
 
 ## 使用
 
-默认就是排版字标：`DEEPSEEK` 权重 500、`HARNESS` 权重 400 且 60% 不透明度，13px、
-字距 0.12em、字体 `Montserrat`（应用本来就加载的品牌字体）。鲸鱼图标保持不变。
+![设置里的「品牌」页：上传的图标、排版文字标、字号与字距滑块](assets/screenshot-settings.png)
 
-两个脚本用来重写编译后的 bundle，在包目录里运行：
+打开左下角账户菜单 → **设置（Settings）** → **品牌**。这一页改完立刻生效、直接存进 profile，不用重新构建、不用重启。
 
-```sh
-# 重排字标（1–3 个词；第一个词实心，后面的词更淡）
-node tools/set-text.mjs DEEPSEEK HARNESS --size 13 --tracking .12em --weights 500,400 --opacity 1,.6
+- **图标** — 「自带图标」保留官方鲸鱼，直接用官方插件自己的组件渲染，官方换图也能跟上；「我的图片」上传自己的图，
+  浏览器里压到最长边 96px，再以 PNG data URL 存进配置。
+- **文字标** — 「排字」排 1–3 个词，第一个词实心、后面的词更淡（默认 60% 不透明度），字号 8–20px、字距 0–0.4em，
+  字体是应用自带的 `Montserrat`；「图片」则整张图替换文字标，高度 14–32px，宽度按原图比例。
+- **恢复默认** — 清掉存下的字段，回到官方 `DEEPSEEK HARNESS`。
 
-# 或者换成图片
-node tools/set-logo.mjs ./my-logo.png
+存下来的值就在 `web` profile 的 `cordis.patch.yml` 里，插件自己那一行下面：
+
+```yaml
+- id: brand-logo
+  name: dsh-brand-logo
+  config:
+    text: ACME LABS
 ```
 
-`set-text.mjs` 参数：`--size`（px）、`--tracking`（CSS 长度）、`--gap`（词间距）、
-`--weights` / `--opacity`（按词逗号分隔）、`--case upper|none`。
-
-`set-logo.mjs` 支持 `svg`、`png`、`jpg`、`webp`、`gif`、`avif`，按图片宽高比自动选槽位：
-
-- 宽高比 ≥ 1.7 → 当作文字标，渲染在 `sidebar.brand.name`，高 24px；
-- 否则 → 当作方形图标，渲染在 `sidebar.brand.mark`，24×24。
-
-可以 `--mode wide|icon` 强制指定，`--height 22` 改高度，`--aspect` 跳过检测。
-
-图片会复制进 `assets/` 并以 data URL 内联进 `client.js` —— 客户端模块拿不到 cordis 行里的配置，
-图片必须在构建时编进模块。建议直接用品牌行需要的尺寸（2× 屏约 48px 高、裁边紧、透明背景），
-每多一字节都会进到浏览器下载的模块里。
-
-改完同样重启 `dsh web` 再刷新。如果是以目录链接方式安装的，文件 mtime 变了之后刷新一般也能生效。
+值没有编进包里，所以升级或重装插件都不会覆盖你设的品牌。
 
 ## 目录结构
 
 ```
-index.js              宿主侧是空的（插件没有服务端行为）
-client.js             编译后的浏览器模块：配置 + 槽位注册
-cordis.patch.yml      把 bundle 插进 loader
-tools/set-text.mjs    排版字标构建脚本
-tools/set-logo.mjs    图片构建脚本（宽高比检测、data URL 内联）
-tools/lib/            共享写入逻辑与模板定位
-tools/client.template.js  组件源码，想改渲染方式就改这里再跑构建脚本
-locale/en.json        插件元信息（标题、描述、详情文档）
+index.js                 宿主半边：声明设置页要编辑的配置 schema
+client.js                编译后的浏览器模块：品牌槽位 + 设置页
+cordis.patch.yml         把 bundle 插进 loader
+tools/build.mjs          从模板重新生成 client.js
+tools/client.template.js 设置页与组件的源码
+tools/lib/client-build.mjs  构建用的写入小工具
+locale/en.json           插件元信息（标题、描述、详情文档）
 locale/zh.json
-icon.svg              插件行图标
-assets/               截图，以及你内联进来的图片
-docs/DETAIL.md        插件详情页长文
+icon.svg                 插件行图标
+assets/                  截图与插件图标
+docs/DETAIL.md           插件详情页长文
 ```
+
+想改设置页本身，改 `tools/client.template.js`，跑 `node tools/build.mjs` 再刷新页面 ——
+客户端的 HMR watcher 会重新加载重建后的 bundle；重启 `dsh web` 则一定生效。
 
 ## 兼容性
 
-针对 `dsh` 0.2.2-rc.5 构建并验证。依赖宿主三件东西，都属于客户端槽位体系：上面两个槽位名、
-`single` 槽位的 priority 遮蔽规则、以及默认排版用的 `--dsw-font-family-brand` 变量。
-如果未来版本改了槽位名，插件只是不再命中、官方品牌自动恢复，不会有别的影响。
+针对 `dsh` 0.2.2-rc.5 构建并验证。依赖客户端槽位体系（`sidebar.brand.mark` / `sidebar.brand.name`、
+`single` 槽位的 priority 遮蔽规则）、客户端设置服务（`ctx.configForms` 与 `settings.section` 槽位），
+以及默认排版用的 `--dsw-font-family-brand` 变量。未来版本要是改了槽位名，插件只是不再命中、官方品牌自动恢复；
+设置服务要是变了，设置页会提示「当前不可写」，品牌行继续用官方默认。
 
 ## 卸载
 

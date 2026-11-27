@@ -1,7 +1,7 @@
 {
   "name": "dsh-brand-logo",
-  "version": "1.0.0",
-  "description": "Replace the DeepSeek Harness sidebar brand row with your own image or a typeset wordmark.",
+  "version": "1.1.0",
+  "description": "Rebrand the DeepSeek Harness sidebar from Settings: your own image or a typeset wordmark, editable live.",
   "license": "MIT",
   "author": {
     "name": "squidwantyou",
@@ -45,6 +45,7 @@
     "tools"
   ],
   "scripts": {
+    "build": "node tools/build.mjs",
     "check": "node --check index.js && node --check client.js"
   },
   "dsh": {
@@ -55,11 +56,15 @@
       "platform": "web",
       "immediately": true,
       "inject": [
-        "@deepseek-ai/dsh-client-ui-sidebar"
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-settings"
       ]
     }
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "~3.18.5"
   }
 }
